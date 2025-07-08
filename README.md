@@ -1,1 +1,3 @@
 # MCDevTools
+## Scripts, Workarounds ...
+This repository contains some of my self-developed tools for working with Spigot, Paper, Bukkit, Bungeecord, Forge and Fabric and is constantly being expanded
