@@ -17,7 +17,8 @@ import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.json.JSONObject;
 
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.Map;
+import java.util.Objects;
 
 public class JSONSerializer {
 
@@ -32,24 +33,27 @@ public class JSONSerializer {
                 itemData.put("id", item.getType().name());
                 itemData.put("amount", item.getAmount());
                 if (item.getItemMeta() instanceof Damageable damageable) {
-                    itemData.put("damage",damageable.getMaxDamage()-damageable.getDamage());
-                    itemData.put("maxDamage", damageable.getMaxDamage());
+                    if (damageable.hasMaxDamage() && damageable.hasDamage()) {
+                        itemData.put("damage",damageable.getMaxDamage()-damageable.getDamage());
+                        itemData.put("maxDamage", damageable.getMaxDamage());
+                    }
                 }
                 JSONObject enchantments = new JSONObject();
-                AtomicReference<Short> enchantSize = new AtomicReference<>((short) 0);
-                item.getEnchantments().forEach((key, value) -> {
-                    enchantSize.set((short) (enchantSize.get() + 1));
+                int enchantSize = 0;
+                for (Map.Entry<Enchantment,Integer> enchantment : item.getEnchantments().entrySet()) {
                     JSONObject enchantmentData = new JSONObject();
-                    enchantmentData.put("key", key.getKey());
-                    enchantmentData.put("level", value);
-                    enchantments.put(String.valueOf(enchantSize.get()), enchantmentData);
-                });
-                enchantments.put("size", enchantSize.get());
+                    enchantmentData.put("key", enchantment.getKey().getKey());
+                    enchantmentData.put("level", enchantment.getValue());
+                    enchantments.put(String.valueOf(enchantSize), enchantmentData.toString());
+                    enchantSize++;
+                }
+                enchantments.put("size", enchantSize);
                 itemData.put("enchantments", enchantments);
                 items.put(String.valueOf(i), itemData);
             }
         }
         root.put("items", items);
+        System.out.println(root.toString());
         return root;
     }
 
@@ -57,7 +61,7 @@ public class JSONSerializer {
         JSONObject root = new JSONObject(inventoryJsonData);
         if (!root.has("items") || !root.has("size")) return null;
         int size = root.getInt("size");
-        Inventory inventory = Bukkit.createInventory(null,size);
+        Inventory inventory = Bukkit.createInventory(null,size%9 == 0? size : (size+(9-(size%9))));
         JSONObject items = root.getJSONObject("items");
         for (int i = 0; i < size; i++) {
             if (items.has(String.valueOf(i))) {
@@ -71,11 +75,15 @@ public class JSONSerializer {
                 }
                 if (itemData.has("enchantments")) {
                     JSONObject enchantments = itemData.getJSONObject("enchantments");
+                    System.out.println("enchantments: " + enchantments);
                     if (enchantments.has("size")) {
+                        System.out.println("size: " + enchantments.getInt("size"));
                         for (int a = 0; a < enchantments.getInt("size"); a++) {
+                            System.out.println(enchantments.getString(String.valueOf(a)));
                             if (enchantments.has(String.valueOf(a))) {
-                                JSONObject enchantmentData = enchantments.getJSONObject(String.valueOf(a));
-                                Enchantment enchantment = RegistryAccess.registryAccess().getRegistry(RegistryKey.ENCHANTMENT).get((NamespacedKey) enchantmentData.get("key"));
+                                JSONObject enchantmentData = new JSONObject(enchantments.getString(String.valueOf(a)));
+                                System.out.println("enchantmentData: " + enchantmentData);
+                                Enchantment enchantment = RegistryAccess.registryAccess().getRegistry(RegistryKey.ENCHANTMENT).get(Objects.requireNonNull(NamespacedKey.fromString((String) enchantmentData.get("key"))));
                                 if (enchantment != null) {
                                     stack.addEnchantment(enchantment, enchantmentData.getInt("level"));
                                 }
@@ -89,7 +97,4 @@ public class JSONSerializer {
         }
         return inventory;
     }
-
-
-
 }
