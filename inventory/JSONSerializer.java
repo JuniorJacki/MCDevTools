@@ -33,9 +33,9 @@ public class JSONSerializer {
                 itemData.put("id", item.getType().name());
                 itemData.put("amount", item.getAmount());
                 if (item.getItemMeta() instanceof Damageable damageable) {
-                    if (damageable.hasMaxDamage() && damageable.hasDamage()) {
-                        itemData.put("damage",damageable.getMaxDamage()-damageable.getDamage());
-                        itemData.put("maxDamage", damageable.getMaxDamage());
+                    if (damageable.hasDamage()) {
+                        itemData.put("durability",item.getType().getMaxDurability()-damageable.getDamage());
+                        itemData.put("maxDurability", item.getType().getMaxDurability());
                     }
                 }
                 JSONObject enchantments = new JSONObject();
@@ -53,7 +53,6 @@ public class JSONSerializer {
             }
         }
         root.put("items", items);
-        System.out.println(root.toString());
         return root;
     }
 
@@ -67,22 +66,18 @@ public class JSONSerializer {
             if (items.has(String.valueOf(i))) {
                 JSONObject itemData = items.getJSONObject(String.valueOf(i));
                 ItemStack stack = new ItemStack(Material.valueOf(itemData.getString("id")), itemData.getInt("amount"));
-                if (itemData.has("damage")) {
+                if (itemData.has("durability") && itemData.has("maxDurability")) {
                     ItemMeta meta = stack.getItemMeta();
                     Damageable damageable = (Damageable) meta;
-                    damageable.setDamage(itemData.getInt("damage"));
+                    damageable.setDamage(itemData.getInt("maxDurability")-itemData.getInt("durability"));
                     stack.setItemMeta(meta);
                 }
                 if (itemData.has("enchantments")) {
                     JSONObject enchantments = itemData.getJSONObject("enchantments");
-                    System.out.println("enchantments: " + enchantments);
                     if (enchantments.has("size")) {
-                        System.out.println("size: " + enchantments.getInt("size"));
                         for (int a = 0; a < enchantments.getInt("size"); a++) {
-                            System.out.println(enchantments.getString(String.valueOf(a)));
                             if (enchantments.has(String.valueOf(a))) {
                                 JSONObject enchantmentData = new JSONObject(enchantments.getString(String.valueOf(a)));
-                                System.out.println("enchantmentData: " + enchantmentData);
                                 Enchantment enchantment = RegistryAccess.registryAccess().getRegistry(RegistryKey.ENCHANTMENT).get(Objects.requireNonNull(NamespacedKey.fromString((String) enchantmentData.get("key"))));
                                 if (enchantment != null) {
                                     stack.addEnchantment(enchantment, enchantmentData.getInt("level"));
